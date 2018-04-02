@@ -1,0 +1,31 @@
+{
+  "name": "mypluralize",
+  "version": "1.0.0",
+  "description": "node.js module to return plural form of any noun.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "mocha --reporter spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dev-gaur/mypluralize.git"
+  },
+  "keywords": [],
+  "author": "Devang Gaur",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dev-gaur/mypluralize/issues"
+  },
+  "homepage": "https://github.com/dev-gaur/mypluralize#readme",
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "mocha": "^5.0.5",
+    "typescript": "^2.8.1"
+  },
+  "dependencies": {
+    "@types/pluralize": "0.0.28",
+    "pluralize": "^7.0.0"
+  }
+}
