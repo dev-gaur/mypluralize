@@ -17,3 +17,7 @@ function getPlural(str) {
     return pluralize.plural(str);
 }
 exports.getPlural = getPlural;
+function getAuthor() {
+    return 'Devang Gaur';
+}
+exports.getAuthor = getAuthor;
