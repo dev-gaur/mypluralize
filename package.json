@@ -1,6 +1,6 @@
 {
   "name": "dgpluralize",
-  "version": "1.0.5",
+  "version": "1.9.0",
   "description": "javascript/typescript module to return plural form of any noun.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
