@@ -23,24 +23,20 @@ var argv = require('yargs')
 	.argv;
 var tag = require('gulp-tag-version');
 
-gulp.task('default', ['watch'], function () {
-	console.log('Starting')
-})
-
 gulp.task('test', function(){
 	let jest = new run.Command('npm test')
 	jest.exec()
 })
 
-// Transpile typescript to javascript
+// Transpile typescript files in lib/ to javascript files in dist/
 gulp.task('transpile', function tsToJs()  {
 	return tsProject.src()
 	.pipe(tsProject())
 	.js.pipe(gulp.dest('dist'))
 })
 
+// 
 gulp.task('tag', ['transpile', 'test'], function() {
-
 	return gulp.src('./')
 	.pipe(through.obj(function(file, err, cb) {
 		git.revParse({args:'--abbrev-ref HEAD'}, function (err, branch) {
@@ -66,14 +62,13 @@ gulp.task('tag', ['transpile', 'test'], function() {
 		})
 	}))
 	.on('finish', () => {
-		gutil.log(gutil.colors.green.green("Successfully push to origin remotes."))		
+		gutil.log(gutil.colors.green.green("Successfully pushed to origin remotes."))		
 	})
 })
 
-// Merges the current release or patch branche to develop and master branches.
-gulp.task('merge', function() {
+// Merges the current ${branchtype} branch to develop and master branches.
+function merge(branchtype) {
 	let currentbranch;
-
 	let outtempStream = new Writable({
 		write(chunk, encoding, callback) {
 			currentbranch = chunk.toString()
@@ -86,8 +81,8 @@ gulp.task('merge', function() {
 	return gulp.src('./')
 	.pipe(through.obj(function(file, err, cb) {
 		git.revParse({args:'--abbrev-ref HEAD'}, function (err, branch) {
-			if(branch.split("-")[0] !== 'release' || branch.split("-")[0] !== 'patch') {
-				gutil.log(gutil.colors.red.red("This operation is only allowed for release and patch branches."))
+			if(branch.split("-")[0] !== branchtype) {
+				gutil.log(gutil.colors.red.red(`This operation is only allowed for ${branchtype} branches.`))
 				throw err
 				return
 			}
@@ -117,15 +112,17 @@ gulp.task('merge', function() {
 		})
 	}))
 	.pipe(through.obj(function(file, err, cb) {
-		git.checkout('master', function(err){
-			if (err) {
-				gutil.log(gutil.colors.red.red("Error occured while checking out MASTER branch."))
-				throw err
-				return
-			}
+		if (branchtype === 'patch' || branchtype === 'release') {
+			git.checkout('master', function(err){
+				if (err) {
+					gutil.log(gutil.colors.red.red("Error occured while checking out MASTER branch."))
+					throw err
+					return
+				}
 			
-			cb(null, file)
-		})
+				cb(null, file)
+			})
+		}
 	}))
 	.pipe(through.obj(function(file, err, cb) {
 		git.merge(currentbranch, function (err) {
@@ -133,13 +130,23 @@ gulp.task('merge', function() {
 			cb(null, file)
 		})
 	}))
+}
 
+gulp.task('merge-patch', function() {
+	return merge('patch')
+})
+
+gulp.task('merge-release', function() {
+	return merge('release')
+})
+
+gulp.task('merge-feature', function() {
+	return merge('feature')
 })
 
 gulp.task('publish', ['tag'], function (done) {
-	// run npm publish terminal command
-	exec('npm publish',
-		function (error, stdout, stderr) {
+	// run 'npm publish' on shell
+	exec('npm publish', function (error, stdout, stderr) {
 			if (stderr) {
 				gutil.log(gutil.colors.red(stderr));
 			} else if (stdout) {
@@ -152,7 +159,7 @@ gulp.task('publish', ['tag'], function (done) {
 		}
 	);
 });
-   
+
 gulp.task('release', ['publish'], function () {
 	gutil.log(gutil.colors.green.green("RELEASED! & PUBLISHED!"))
 });
