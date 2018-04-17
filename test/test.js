@@ -23,3 +23,12 @@ describe('getPlural function test', () => {
         expect(result).to.equal('Men');
     });
 });
+
+
+test('make camel plural', () => {
+	expect(index.getPlural("camel")).to.equal("camels");
+});
+
+test('Make potato plural', () => {
+	expect(index.getPlural("potato")).to.equal("potatoes");
+});
