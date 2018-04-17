@@ -9,3 +9,12 @@ import * as pluralize from 'pluralize'
 export function getPlural (str: any): string {
 	return pluralize.plural(str)
 }
+
+/**
+ * @method: Returns Author name.
+ * @returns {string}
+ */
+
+export function getAuthor (): string {
+	return "Devang Gaur"
+}

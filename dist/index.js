@@ -17,3 +17,11 @@ function getPlural(str) {
     return pluralize.plural(str);
 }
 exports.getPlural = getPlural;
+/**
+ * @method: Returns Author name.
+ * @returns {string}
+ */
+function getAuthor() {
+    return "Devang Gaur";
+}
+exports.getAuthor = getAuthor;
