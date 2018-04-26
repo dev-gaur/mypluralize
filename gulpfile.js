@@ -10,23 +10,8 @@ var git  = require('gulp-git');
 var gutil = require('gulp-util');
 var filter = require('gulp-filter');
 var exec = require('child_process').exec;
-var argv = require('yargs')
-    .option('type', {
-        alias: 't',
-        choices: ['patch', 'minor', 'major']
-	})
-	.option('note', {
-		alias: 'm',
-		description: 'Release Note text.',
-		type: 'string'
-	})
-	.argv;
 var tag = require('gulp-tag-version');
 
-gulp.task('test', function(){
-	let jest = new run.Command('npm test')
-	jest.exec()
-})
 
 // Transpile typescript files in lib/ to javascript files in dist/
 gulp.task('transpile', function tsToJs()  {
@@ -35,9 +20,41 @@ gulp.task('transpile', function tsToJs()  {
 	.js.pipe(gulp.dest('dist'))
 })
 
+gulp.task('test', ['transpile'], function(){
+	let test = new run.Command('npm test')
+	test.exec()
+})
+
+gulp.task('bump', function(){
+	var argv = require('yargs')
+    .option('type', {
+        alias: 't',
+        choices: ['patch', 'minor', 'major']
+	}).argv
+ 
+	return gulp.src(['package.json', 'package-lock.json'])
+	// bump package.json version
+	.pipe(bump({
+		type: argv.type || 'patch'
+	}))
+	// save the bumped files into filesystem
+	.pipe(gulp.dest('./'))
+	.pipe(git.add())
+	.pipe(git.commit("Bumped up the version."))
+
+})
+
 // 
 gulp.task('tag', ['transpile', 'test'], function() {
-	return gulp.src('./')
+	let argv = require('yargs')
+	.option('note', {
+		alias: 'm',
+		description: 'Release Note text.',
+		type: 'string'
+	})
+	.argv;
+
+	return gulp.src('./package.json')
 	.pipe(through.obj(function(file, err, cb) {
 		git.revParse({args:'--abbrev-ref HEAD'}, function (err, branch) {
 			if(branch !== 'master') {
@@ -45,18 +62,18 @@ gulp.task('tag', ['transpile', 'test'], function() {
 				throw err
 				return
 			}
-
+			console.log(argv.note)
 			cb(null, file)
-		});  
+		});
 	}))
+	.pipe(gulp.dest('./'))
 	.pipe(filter('package.json'))
 	// create tag based on the filtered file
 	.pipe(tag({
 		label: argv.note || undefined
 	}))
-	.pipe(gulp.dest("./"))
-	.pipe(through(function(file, enc, cb){
-		git.push('origin', ['master', 'develop'], {args: " --tags"}, function (err) {
+	.pipe(through.obj(function(file, enc, cb){
+		git.push('origin', ['master', 'develop'], {args: '--tags'}, function (err) {
 			if (err) throw err;
 			cb(null, file)
 		})
@@ -93,6 +110,18 @@ function merge(branchtype) {
 
 			cb(null, file)
 		});  
+	}))
+	.pipe(through.obj(function(file, err, cb) {
+		if (branchtype === 'feature') {
+			git.pull('origin', 'develop', {args: '--rebase', maxBuffer: Infinity}, function (err) {
+				if (err) {
+					gutil.log(gutil.colors.red.red("Error occured while rebasing on DEVELOP branch."))
+					throw err
+					return
+				}
+			});
+		}
+		cb(null, file)
 	}))
 	.pipe(through.obj(function(file, err, cb) {
 		git.checkout('develop', function(err){
@@ -154,103 +183,9 @@ gulp.task('publish', ['tag'], function (done) {
 			}
 			// execute callback when its done
 			if (done) {
-				  done();
+				gutil.log(gutil.colors.green.green("RELEASED! & PUBLISHED!"))
+				done();
 			}
 		}
 	);
 });
-
-gulp.task('release', ['publish'], function () {
-	gutil.log(gutil.colors.green.green("RELEASED! & PUBLISHED!"))
-});
-
-
-
-
-
-/*
- * ARCHIVE *
-gulp.task('bump', ['transpile', 'test'], function() {
-	let newTag
-	let outTagStream = new Writable({
-		write(chunk, encoding, callback) {
-			newTag = chunk.toString()
-			console.log(newTag)
-			callback()
-		}
-	})
-	let inTagStream = new Readable()
-
-	return gulp.src('./package.json')
-		.pipe(through.obj(function(file, err, cb) {
-			git.revParse({args:'--abbrev-ref HEAD'}, function (err, branch) {
-				if(branch !== 'master') {
-					gutil.log(gutil.colors.red.red("Releases are only allowed to happen from MASTER branch."))
-					throw err
-					return
-				}
-
-				cb(null, file)
-			});  
-		}))
-		// bump package.json version
-		.pipe(bump({
-			type: argv.type || 'patch'
-		}))
-		// save the bumped files into filesystem
-		.pipe(gulp.dest('./'))
-		.pipe(through.obj(function (file, enc, cb) {
-
-			let tag = require('./package.json').version
-			inTagStream.push(tag)
-			inTagStream.push(null)
-			inTagStream.pipe(outTagStream)
-
-			cb(null, file)
-		}))
-		//.pipe(git.add('package-lock.json'))
-		// commit the changed files
-		.pipe(git.commit('Bumped up the version.'))
-		// filter one file
-		.pipe(filter('package.json'))
-		// create tag based on the filtered file
-		.pipe(tag({
-			label: argv.note || undefined
-		}))
-		.pipe(through.obj(function(file, err, cb) {
-			let branchname = 'release-v' + newTag
-			git.checkout(branchname, {args:'-b'}, function(err){
-				if (err) {
-					gutil.log(gutil.colors.red.red("Error occured while creating and checking out to new feature branch."))
-					throw err
-					return
-				}
-				
-				cb(null, file)
-			})
-		}))
-		.pipe(through.obj(function(file, err, cb) {
-			git.checkout('master', function(err){
-				if (err) {
-					gutil.log(gutil.colors.red.red("Error occured while checking out MASTER branch."))
-					throw err
-					return
-				}
-				
-				cb(null, file)
-			})
-		}))
-		.pipe(through.obj(function(file, err, cb) {
-			git.push('origin', ['master', 'develop', 'release-v' + newTag], function(err){
-				if (err) {
-					gutil.log(gutil.colors.red.red("Error occured while pushing to origin."))
-					throw err
-					return
-				}
-
-				cb(null, file)
-			})
-		}))
-
-});
-*/
